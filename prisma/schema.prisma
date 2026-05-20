@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String
+  email     String     @unique
+  password  String
+  role      Role       @default(CUSTOMER)
+  createdAt DateTime   @default(now())
+  orders    Order[]
+  eatenLogs EatenLog[]
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+model Week {
+  id        String   @id @default(cuid())
+  weekNum   Int      @unique
+  startDate DateTime
+  active    Boolean  @default(false)
+  meals     Meal[]
+  orders    Order[]
+  createdAt DateTime @default(now())
+}
+
+model Meal {
+  id         String        @id @default(cuid())
+  name       String
+  desc       String
+  emoji      String
+  cal        Int
+  pro        Int
+  carb       Int
+  fat        Int
+  fib        Int
+  sod        Int
+  price      Int
+  cat        MealCategory
+  badge      String?
+  active     Boolean       @default(true)
+  weekId     String
+  week       Week          @relation(fields: [weekId], references: [id])
+  orderItems OrderItem[]
+  eatenItems EatenItem[]
+  createdAt  DateTime      @default(now())
+}
+
+enum MealCategory {
+  HIGH_PROTEIN
+  LOW_CALORIE
+  HIGH_FIBRE
+  VEGETARIAN
+  BALANCED
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  weekId    String
+  week      Week        @relation(fields: [weekId], references: [id])
+  items     OrderItem[]
+  subtotal  Int
+  delivery  Int         @default(200)
+  total     Int
+  totalCal  Int
+  totalPro  Int
+  totalCarb Int
+  totalFat  Int
+  totalFib  Int
+  totalSod  Int
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id])
+  mealId    String
+  meal      Meal   @relation(fields: [mealId], references: [id])
+  qty       Int
+  unitPrice Int
+  linePrice Int
+}
+
+model EatenLog {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  weekNum   Int
+  day       DayOfWeek
+  items     EatenItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([userId, weekNum, day])
+}
+
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+model EatenItem {
+  id         String   @id @default(cuid())
+  eatenLogId String
+  eatenLog   EatenLog @relation(fields: [eatenLogId], references: [id])
+  mealId     String
+  meal       Meal     @relation(fields: [mealId], references: [id])
+  qty        Int
+}
