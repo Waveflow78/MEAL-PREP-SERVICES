@@ -7,14 +7,17 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  name      String
-  email     String     @unique
-  password  String
-  role      Role       @default(CUSTOMER)
-  createdAt DateTime   @default(now())
-  orders    Order[]
-  eatenLogs EatenLog[]
+  id            String               @id @default(cuid())
+  name          String
+  email         String               @unique
+  password      String
+  phone         String?
+  phoneVerified Boolean              @default(false)
+  role          Role                 @default(CUSTOMER)
+  createdAt     DateTime             @default(now())
+  orders        Order[]
+  eatenLogs     EatenLog[]
+  resetTokens   PasswordResetToken[]
 }
 
 enum Role {
@@ -63,24 +66,35 @@ enum MealCategory {
 }
 
 model Order {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id])
-  weekId    String
-  week      Week        @relation(fields: [weekId], references: [id])
-  items     OrderItem[]
-  subtotal  Int
-  delivery  Int         @default(200)
-  total     Int
-  totalCal  Int
-  totalPro  Int
-  totalCarb Int
-  totalFat  Int
-  totalFib  Int
-  totalSod  Int
-  status    OrderStatus @default(PENDING)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  weekId          String
+  week            Week          @relation(fields: [weekId], references: [id])
+  items           OrderItem[]
+  subtotal        Int
+  delivery        Int           @default(200)
+  total           Int
+  totalCal        Int
+  totalPro        Int
+  totalCarb       Int
+  totalFat        Int
+  totalFib        Int
+  totalSod        Int
+  status          OrderStatus   @default(PENDING)
+  deliveryAddress String?
+  mpesaPhone      String?
+  mpesaCode       String?
+  mpesaCheckoutId String?
+  paymentStatus   PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
 }
 
 enum OrderStatus {
@@ -133,4 +147,23 @@ model EatenItem {
   mealId     String
   meal       Meal     @relation(fields: [mealId], references: [id])
   qty        Int
+}
+
+model PhoneOtp {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

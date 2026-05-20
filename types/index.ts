@@ -15,6 +15,8 @@ export type OrderStatus =
   | 'DELIVERED'
   | 'CANCELLED'
 
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED'
+
 export type DayOfWeek = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN'
 
 export interface Meal {
@@ -69,6 +71,10 @@ export interface Order {
   totalFib: number
   totalSod: number
   status: OrderStatus
+  deliveryAddress?: string | null
+  mpesaPhone?: string | null
+  mpesaCode?: string | null
+  paymentStatus: PaymentStatus
   createdAt: string
   updatedAt: string
   user?: { name: string; email: string }

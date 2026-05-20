@@ -5,11 +5,15 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL!
-  // max:1 prevents connection pool exhaustion in serverless (Vercel) environments
-  const adapter = new PrismaPg({ connectionString, max: 1 })
+  const isProduction = process.env.NODE_ENV === 'production'
+  const adapter = new PrismaPg({
+    connectionString,
+    max: isProduction ? 1 : 10,
+    ssl: isProduction ? { rejectUnauthorized: false } : undefined,
+  })
   return new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    log: isProduction ? ['error'] : ['error', 'warn'],
   })
 }
 

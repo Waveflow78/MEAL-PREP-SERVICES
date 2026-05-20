@@ -1,14 +1,12 @@
 'use client'
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import type { Meal, Week } from '@/types'
 import { useCartStore } from '@/store/cartStore'
-import { api } from '@/lib/api'
-import { toast } from '@/components/ui/Toast'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import AuthForm from '@/components/auth/AuthForm'
+import CheckoutModal from '@/components/menu/CheckoutModal'
 
 interface Props {
   meals: Meal[]
@@ -17,31 +15,18 @@ interface Props {
 
 export default function OrderPanel({ meals, week }: Props) {
   const { data: session } = useSession()
-  const router = useRouter()
-  const { items, clearCart, getTotals } = useCartStore()
-  const [placing, setPlacing] = useState(false)
+  const { items, getTotals } = useCartStore()
   const [authOpen, setAuthOpen] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
 
   const totals = getTotals(meals)
-  const MIN = 10
+  const MIN = 3
   const canOrder = totals.count >= MIN
   const selected = meals.filter((m) => (items[m.id] ?? 0) > 0)
 
-  async function placeOrder() {
+  function handleCheckout() {
     if (!session) { setAuthOpen(true); return }
-    setPlacing(true)
-    try {
-      await api.post('/api/orders', {
-        items: Object.entries(items).filter(([, q]) => q > 0).map(([mealId, qty]) => ({ mealId, qty })),
-      })
-      clearCart()
-      toast('Order placed successfully!')
-      router.push('/orders')
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Failed to place order', 'error')
-    } finally {
-      setPlacing(false)
-    }
+    setCheckoutOpen(true)
   }
 
   return (
@@ -115,7 +100,7 @@ export default function OrderPanel({ meals, week }: Props) {
 
         {!canOrder && totals.count > 0 && (
           <div className="mt-4 rounded-xl bg-terracotta/10 p-3 text-xs text-terracotta">
-            Add {MIN - totals.count} more meal{MIN - totals.count !== 1 ? 's' : ''} to meet the minimum
+            Add {MIN - totals.count} more meal{MIN - totals.count !== 1 ? 's' : ''} to reach the minimum of {MIN}
           </div>
         )}
 
@@ -124,16 +109,22 @@ export default function OrderPanel({ meals, week }: Props) {
           size="lg"
           className="mt-4 w-full"
           disabled={!canOrder}
-          loading={placing}
-          onClick={placeOrder}
+          onClick={handleCheckout}
         >
-          Place Order
+          Proceed to Checkout →
         </Button>
       </div>
 
       <Modal open={authOpen} onClose={() => setAuthOpen(false)} title="Sign in to Order">
         <AuthForm onSuccess={() => setAuthOpen(false)} />
       </Modal>
+
+      <CheckoutModal
+        open={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        meals={meals}
+        week={week}
+      />
     </>
   )
 }
