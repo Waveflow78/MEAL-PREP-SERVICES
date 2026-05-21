@@ -83,6 +83,9 @@ model Order {
   totalSod        Int
   status          OrderStatus   @default(PENDING)
   deliveryAddress String?
+  deliveryLat     Float?
+  deliveryLng     Float?
+  deliveryNotes   String?
   mpesaPhone      String?
   mpesaCode       String?
   mpesaCheckoutId String?

@@ -6,8 +6,8 @@ import { useCartStore } from '@/store/cartStore'
 import { api } from '@/lib/api'
 import { toast } from '@/components/ui/Toast'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import MapPicker, { type DeliveryLocation } from '@/components/checkout/MapPicker'
 
 interface Props {
   open: boolean
@@ -25,14 +25,14 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
   const total = totals.price + 200
 
   const [step, setStep] = useState<Step>('form')
-  const [address, setAddress] = useState('')
+  const [location, setLocation] = useState<DeliveryLocation | null>(null)
+  const [notes, setNotes] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [mpesaCode, setMpesaCode] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Reset state when modal opens
   useEffect(() => {
     if (open) { setStep('form'); setOrderId(null); setMpesaCode(null) }
   }, [open])
@@ -55,7 +55,6 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
       } catch { /* keep polling */ }
     }, 3000)
 
-    // Timeout after 3 min
     const timeout = setTimeout(() => {
       clearInterval(pollRef.current!)
       if (step === 'waiting') setStep('failed')
@@ -65,13 +64,22 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
   }, [step, orderId, clearCart])
 
   async function handlePay() {
-    if (!address.trim()) { toast('Please enter your delivery address', 'error'); return }
-    if (!phone.trim()) { toast('Please enter your M-Pesa phone number', 'error'); return }
+    if (!location?.address.trim()) {
+      toast('Please set your delivery location on the map', 'error')
+      return
+    }
+    if (!phone.trim()) {
+      toast('Please enter your M-Pesa phone number', 'error')
+      return
+    }
     setLoading(true)
     try {
       const res = await api.post<{ orderId: string; devMode?: boolean }>('/api/mpesa/initiate', {
         items: Object.entries(items).filter(([, q]) => q > 0).map(([mealId, qty]) => ({ mealId, qty })),
-        deliveryAddress: address,
+        deliveryAddress: location.address,
+        deliveryLat: location.lat || undefined,
+        deliveryLng: location.lng || undefined,
+        deliveryNotes: notes.trim() || undefined,
         mpesaPhone: phone,
       })
       setOrderId(res.orderId)
@@ -99,8 +107,9 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
 
   return (
     <Modal open={open} onClose={step === 'waiting' ? undefined : onClose} title="Checkout">
+
       {/* ORDER SUMMARY */}
-      <div className="mb-4 rounded-xl bg-cream p-3 space-y-1 text-sm">
+      <div className="mb-4 rounded-xl bg-cream p-3 space-y-1 text-sm max-h-36 overflow-y-auto">
         {selected.map((m) => (
           <div key={m.id} className="flex justify-between text-mid">
             <span>{m.emoji} {m.name} ×{items[m.id]}</span>
@@ -117,23 +126,41 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
 
       {/* STEP: FORM */}
       {step === 'form' && (
-        <div className="space-y-3">
-          <Input
-            label="Delivery Address"
-            placeholder="e.g. 14 Nairobi Lane, Westlands, Nairobi"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-          />
-          <Input
-            label="M-Pesa Phone Number"
-            placeholder="e.g. 0712345678"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-          <p className="text-xs text-muted">
-            You will receive a push notification on your phone to confirm payment of <strong>KSh {total.toLocaleString()}</strong>.
-          </p>
+        <div className="space-y-4">
+
+          {/* ── Map Picker ── */}
+          <MapPicker value={location} onChange={setLocation} />
+
+          {/* ── Delivery Notes ── */}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-mid">
+              Delivery Notes <span className="text-muted font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Blue gate, call when you arrive, leave with security…"
+              rows={2}
+              className="w-full rounded-lg border border-[rgba(45,74,62,0.25)] bg-warm-white px-3 py-2.5 text-sm text-charcoal placeholder:text-muted focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest/20 resize-none"
+            />
+          </div>
+
+          {/* ── M-Pesa Phone ── */}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-mid">M-Pesa Phone Number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. 0712 345 678"
+              className="w-full rounded-lg border border-[rgba(45,74,62,0.25)] bg-warm-white px-3 py-2.5 text-sm text-charcoal placeholder:text-muted focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest/20"
+            />
+            <p className="text-xs text-muted">
+              You'll receive a push notification to confirm payment of{' '}
+              <strong className="text-charcoal">KSh {total.toLocaleString()}</strong>.
+            </p>
+          </div>
+
           <Button variant="terracotta" size="lg" className="w-full" loading={loading} onClick={handlePay}>
             🔒 Pay KSh {total.toLocaleString()} via M-Pesa
           </Button>
@@ -142,25 +169,39 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
 
       {/* STEP: WAITING */}
       {step === 'waiting' && (
-        <div className="flex flex-col items-center gap-4 py-6 text-center">
-          <div className="w-14 h-14 rounded-full border-4 border-forest border-t-transparent animate-spin" />
+        <div className="flex flex-col items-center gap-4 py-8 text-center">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-forest/20" />
+            <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-forest border-t-transparent animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center text-xl">📱</div>
+          </div>
           <div>
             <p className="font-semibold text-charcoal">Check your phone!</p>
-            <p className="mt-1 text-sm text-muted">Enter your M-Pesa PIN to confirm payment of <strong>KSh {total.toLocaleString()}</strong>.</p>
-            <p className="mt-3 text-xs text-muted">This page will update automatically once payment is confirmed.</p>
+            <p className="mt-1 text-sm text-muted">
+              Enter your M-Pesa PIN to confirm{' '}
+              <strong className="text-charcoal">KSh {total.toLocaleString()}</strong>.
+            </p>
+            <p className="mt-3 text-xs text-muted">This page will update automatically once confirmed.</p>
           </div>
         </div>
       )}
 
       {/* STEP: SUCCESS */}
       {step === 'success' && (
-        <div className="flex flex-col items-center gap-4 py-6 text-center">
+        <div className="flex flex-col items-center gap-4 py-8 text-center">
           <div className="text-6xl">✅</div>
           <div>
             <p className="font-bold text-lg text-charcoal">Payment Confirmed!</p>
-            <p className="mt-1 text-sm text-muted">Your order has been placed for Week {week.weekNum}.</p>
+            <p className="mt-1 text-sm text-muted">
+              Your order has been placed for Week {week.weekNum}.
+            </p>
+            {location && (
+              <p className="mt-2 text-xs text-muted">📌 Delivering to: {location.address}</p>
+            )}
             {mpesaCode && mpesaCode !== 'DEV_MODE' && (
-              <p className="mt-2 text-xs font-mono bg-cream rounded px-2 py-1 text-mid">M-Pesa ref: {mpesaCode}</p>
+              <p className="mt-2 text-xs font-mono bg-cream rounded px-2 py-1 text-mid">
+                M-Pesa ref: {mpesaCode}
+              </p>
             )}
           </div>
           <Button variant="terracotta" size="lg" className="w-full" onClick={handleSuccess}>
@@ -171,7 +212,7 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
 
       {/* STEP: FAILED */}
       {step === 'failed' && (
-        <div className="flex flex-col items-center gap-4 py-6 text-center">
+        <div className="flex flex-col items-center gap-4 py-8 text-center">
           <div className="text-6xl">❌</div>
           <div>
             <p className="font-bold text-lg text-charcoal">Payment Failed</p>

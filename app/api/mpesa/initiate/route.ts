@@ -12,9 +12,12 @@ export async function POST(req: NextRequest) {
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const { items, deliveryAddress, mpesaPhone } = await req.json() as {
+    const { items, deliveryAddress, deliveryLat, deliveryLng, deliveryNotes, mpesaPhone } = await req.json() as {
       items: { mealId: string; qty: number }[]
       deliveryAddress: string
+      deliveryLat?: number
+      deliveryLng?: number
+      deliveryNotes?: string
       mpesaPhone: string
     }
 
@@ -56,6 +59,9 @@ export async function POST(req: NextRequest) {
         subtotal, delivery, total,
         totalCal, totalPro, totalCarb, totalFat, totalFib, totalSod,
         deliveryAddress,
+        deliveryLat:   deliveryLat   ?? null,
+        deliveryLng:   deliveryLng   ?? null,
+        deliveryNotes: deliveryNotes ?? null,
         mpesaPhone: normPhone,
         paymentStatus: 'PENDING',
       },
