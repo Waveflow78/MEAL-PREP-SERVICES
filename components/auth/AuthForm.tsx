@@ -19,6 +19,7 @@ const registerSchema = z.object({
   name: z.string().min(2, 'Name too short'),
   email: z.string().email('Invalid email'),
   password: z.string().min(8, 'Min 8 characters'),
+  phone: z.string().min(9, 'Enter a valid phone number').optional().or(z.literal('')),
 })
 
 type LoginData = z.infer<typeof loginSchema>
@@ -97,6 +98,8 @@ export default function AuthForm({ onSuccess }: Props) {
             {...registerForm.register('email')} error={registerForm.formState.errors.email?.message} />
           <Input label="Password" type="password" placeholder="Min 8 characters"
             {...registerForm.register('password')} error={registerForm.formState.errors.password?.message} />
+          <Input label="Phone Number" type="tel" placeholder="e.g. 0712 345 678 (optional)"
+            {...registerForm.register('phone')} error={registerForm.formState.errors.phone?.message} />
           <Button variant="terracotta" size="lg" className="w-full mt-2" loading={loading} type="submit">
             Create Account
           </Button>

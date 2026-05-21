@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password } = await req.json()
+    const { name, email, password, phone } = await req.json()
     if (!name || !email || !password) return Response.json({ error: 'All fields required' }, { status: 400 })
 
     const existing = await prisma.user.findUnique({ where: { email } })
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     const hashed = await bcrypt.hash(password, 10)
     const user = await prisma.user.create({
-      data: { name, email, password: hashed },
+      data: { name, email, password: hashed, phone: phone?.trim() || null },
     })
 
     return Response.json({ id: user.id, name: user.name, email: user.email })
