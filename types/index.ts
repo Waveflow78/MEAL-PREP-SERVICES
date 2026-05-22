@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'CUSTOMER'
+export type Role = 'ADMIN' | 'COACH' | 'CUSTOMER'
 
 export type MealCategory =
   | 'HIGH_PROTEIN'

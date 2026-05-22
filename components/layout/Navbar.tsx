@@ -34,6 +34,11 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+          {session?.user.role === 'COACH' && (
+            <Link href="/coach" className={`text-sm font-medium ${pathname?.startsWith('/coach') ? 'text-forest' : 'text-mid hover:text-forest'}`}>
+              My Clients
+            </Link>
+          )}
           {session?.user.role === 'ADMIN' && (
             <Link href="/admin" className={`text-sm font-medium ${pathname === '/admin' ? 'text-terracotta' : 'text-mid hover:text-terracotta'}`}>
               Admin
@@ -73,6 +78,9 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+          {session?.user.role === 'COACH' && (
+            <Link href="/coach" onClick={() => setMenuOpen(false)} className="block py-2 text-sm font-medium text-mid hover:text-forest">My Clients</Link>
+          )}
           {session?.user.role === 'ADMIN' && (
             <Link href="/admin" onClick={() => setMenuOpen(false)} className="block py-2 text-sm font-medium text-mid hover:text-terracotta">Admin</Link>
           )}
