@@ -33,7 +33,7 @@ export default function Navbar() {
     <nav className="sticky top-0 z-40 border-b border-[rgba(45,74,62,0.12)] bg-warm-white/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <Link href={role === 'EMPLOYEE' ? '/employee' : '/menu'} className="font-serif text-xl font-bold text-forest">
-          Kim&apos;s Kitchen
+          Mali Meals
         </Link>
 
         {/* Desktop links */}

@@ -52,7 +52,7 @@ export async function stkPush(params: {
     PhoneNumber: params.phone,
     CallBackURL: params.callbackUrl,
     AccountReference: params.orderId,
-    TransactionDesc: `Kim's Kitchen order ${params.orderId}`,
+    TransactionDesc: `Mali Meals order ${params.orderId}`,
   }
 
   const res = await fetch(`${baseUrl()}/mpesa/stkpush/v1/processrequest`, {

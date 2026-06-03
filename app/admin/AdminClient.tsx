@@ -72,15 +72,15 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
   const WA_TEMPLATES = [
     {
       label: '🍱 New menu live',
-      text: `🍱 *Kim's Kitchen — New Menu is Live!*\n\nOur latest meal prep menu is now available. Visit our website to view this week's delicious options and place your order 👇\nhttps://meal-prep-services.vercel.app/menu`,
+      text: `🍱 *Mali Meals — New Menu is Live!*\n\nOur latest meal prep menu is now available. Visit our website to view this week's delicious options and place your order 👇\nhttps://meal-prep-services.vercel.app/menu`,
     },
     {
       label: '📦 Orders ready',
-      text: `📦 *Kim's Kitchen — Your Order is Ready!*\n\nGreat news! Your meal prep order has been prepared and is ready for collection or delivery. Thank you for choosing Kim's Kitchen! 🙏`,
+      text: `📦 *Mali Meals — Your Order is Ready!*\n\nGreat news! Your meal prep order has been prepared and is ready for collection or delivery. Thank you for choosing Mali Meals! 🙏`,
     },
     {
       label: '⏰ Order reminder',
-      text: `⏰ *Kim's Kitchen — Order Reminder*\n\nDon't forget to place your order for this week's meal prep before the deadline! Visit 👇\nhttps://meal-prep-services.vercel.app/menu`,
+      text: `⏰ *Mali Meals — Order Reminder*\n\nDon't forget to place your order for this week's meal prep before the deadline! Visit 👇\nhttps://meal-prep-services.vercel.app/menu`,
     },
     {
       label: '✍️ Custom message',

@@ -46,15 +46,15 @@ export async function POST(req: Request) {
   const { name, phone } = await req.json()
   if (!name?.trim()) return Response.json({ error: 'Name is required' }, { status: 400 })
 
-  // Generate email: firstname.lastname@staff.kimskitchen.com
+  // Generate email: firstname.lastname@staff.malimeals.com
   const slug = name.trim().toLowerCase().replace(/\s+/g, '.')
-  let email = `${slug}@staff.kimskitchen.com`
+  let email = `${slug}@staff.malimeals.com`
 
   // If email already taken, append a number
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
     const count = await prisma.user.count({ where: { email: { startsWith: `${slug}@staff` } } })
-    email = `${slug}${count + 1}@staff.kimskitchen.com`
+    email = `${slug}${count + 1}@staff.malimeals.com`
   }
 
   const plainPassword = randomPassword()

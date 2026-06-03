@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         day: 'numeric', month: 'long'
       })
       const message =
-        `🍱 *Kim's Kitchen — Week ${weekNum} Menu is Live!*\n\n` +
+        `🍱 *Mali Meals — Week ${weekNum} Menu is Live!*\n\n` +
         `Our new menu for the week of ${dateLabel} is now available.\n\n` +
         `Visit our website to view the meals and place your order 👇\n` +
         `https://meal-prep-services.vercel.app/menu`

@@ -36,6 +36,6 @@ export const useCartStore = create<CartStore>()(
       clearCart: () => set({ items: {} }),
       getTotals: (meals) => computeCartTotals(get().items, meals),
     }),
-    { name: 'kims-cart', storage: createJSONStorage(() => sessionStorage) }
+    { name: 'mali-cart', storage: createJSONStorage(() => sessionStorage) }
   )
 )

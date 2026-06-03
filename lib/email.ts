@@ -11,7 +11,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     const { Resend } = await import('resend')
     const resend = new Resend(process.env.RESEND_API_KEY)
     await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Kim's Kitchen <noreply@kimskitchen.com>",
+      from: process.env.EMAIL_FROM || "Mali Meals <noreply@malimeals.com>",
       to,
       subject,
       html,
@@ -28,7 +28,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
     })
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || "Kim's Kitchen <noreply@kimskitchen.com>",
+      from: process.env.SMTP_FROM || "Mali Meals <noreply@malimeals.com>",
       to,
       subject,
       html,

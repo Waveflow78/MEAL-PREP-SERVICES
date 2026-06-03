@@ -8,7 +8,7 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-serif'
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
-  title: { default: "Kim's Kitchen", template: "%s | Kim's Kitchen" },
+  title: { default: "Mali Meals", template: "%s | Mali Meals" },
   description: 'Nutritionist-designed meal prep — order, track macros, and hit your goals every week.',
 }
 

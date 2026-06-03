@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const { success, error } = await sendSms(
       normalised,
-      `Your Kim's Kitchen verification code is: ${code}. Expires in 10 minutes.`
+      `Your Mali Meals verification code is: ${code}. Expires in 10 minutes.`
     )
 
     if (!success) return Response.json({ error: error || 'SMS failed' }, { status: 500 })
