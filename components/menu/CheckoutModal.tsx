@@ -6,8 +6,8 @@ import { useCartStore } from '@/store/cartStore'
 import { api } from '@/lib/api'
 import { toast } from '@/components/ui/Toast'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import AddressPicker, { type PickedLocation } from '@/components/ui/AddressPicker'
 
 interface Props {
   open: boolean
@@ -22,15 +22,15 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
   const router = useRouter()
   const { items, clearCart, getTotals } = useCartStore()
   const totals = getTotals(meals)
-  const total = totals.price + 200
+  const total  = totals.price + 200
 
-  const [step, setStep]       = useState<Step>('form')
-  const [address, setAddress] = useState('')
-  const [notes, setNotes]     = useState('')
-  const [phone, setPhone]     = useState('')
-  const [loading, setLoading] = useState(false)
-  const [orderId, setOrderId] = useState<string | null>(null)
-  const [mpesaCode, setMpesaCode] = useState<string | null>(null)
+  const [step,     setStep]     = useState<Step>('form')
+  const [location, setLocation] = useState<PickedLocation | null>(null)
+  const [notes,    setNotes]    = useState('')
+  const [phone,    setPhone]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [orderId,  setOrderId]  = useState<string | null>(null)
+  const [mpesaCode,setMpesaCode]= useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -64,13 +64,15 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
   }, [step, orderId, clearCart])
 
   async function handlePay() {
-    if (!address.trim()) { toast('Please enter your delivery address', 'error'); return }
-    if (!phone.trim())   { toast('Please enter your M-Pesa phone number', 'error'); return }
+    if (!location?.address?.trim()) { toast('Please select a delivery address', 'error'); return }
+    if (!phone.trim())              { toast('Please enter your M-Pesa phone number', 'error'); return }
     setLoading(true)
     try {
       const res = await api.post<{ orderId: string; devMode?: boolean }>('/api/mpesa/initiate', {
         items: Object.entries(items).filter(([, q]) => q > 0).map(([mealId, qty]) => ({ mealId, qty })),
-        deliveryAddress: address,
+        deliveryAddress: location.address,
+        deliveryLat:  location.lat  || undefined,
+        deliveryLng:  location.lng  || undefined,
         deliveryNotes: notes.trim() || undefined,
         mpesaPhone: phone,
       })
@@ -119,13 +121,11 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
       {/* STEP: FORM */}
       {step === 'form' && (
         <div className="space-y-3">
-          <Input
-            label="Delivery Address"
-            placeholder="e.g. 14 Nairobi Lane, Westlands, Nairobi"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-          />
 
+          {/* Address picker — GPS + autocomplete + map */}
+          <AddressPicker value={location} onChange={setLocation} label="Delivery Address" />
+
+          {/* Delivery notes */}
           <div className="space-y-1">
             <label className="block text-xs font-medium text-mid">
               Delivery Notes <span className="font-normal text-muted">(optional)</span>
@@ -139,17 +139,23 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
             />
           </div>
 
-          <Input
-            label="M-Pesa Phone Number"
-            placeholder="e.g. 0712 345 678"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+          {/* M-Pesa phone */}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-mid">M-Pesa Phone Number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. 0712 345 678"
+              className="w-full rounded-lg border border-[rgba(45,74,62,0.25)] bg-warm-white px-3 py-2.5 text-sm text-charcoal placeholder:text-muted focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest/20"
+            />
+          </div>
+
           <p className="text-xs text-muted">
             You will receive a push notification on your phone to confirm payment of{' '}
             <strong className="text-charcoal">KSh {total.toLocaleString()}</strong>.
           </p>
+
           <Button variant="terracotta" size="lg" className="w-full" loading={loading} onClick={handlePay}>
             🔒 Pay KSh {total.toLocaleString()} via M-Pesa
           </Button>
@@ -182,7 +188,7 @@ export default function CheckoutModal({ open, onClose, meals, week }: Props) {
           <div>
             <p className="font-bold text-lg text-charcoal">Payment Confirmed!</p>
             <p className="mt-1 text-sm text-muted">Your order has been placed for Week {week.weekNum}.</p>
-            {address && <p className="mt-2 text-xs text-muted">📌 Delivering to: {address}</p>}
+            {location?.address && <p className="mt-2 text-xs text-muted">📌 Delivering to: {location.address}</p>}
             {mpesaCode && mpesaCode !== 'DEV_MODE' && (
               <p className="mt-2 text-xs font-mono bg-cream rounded px-2 py-1 text-mid">M-Pesa ref: {mpesaCode}</p>
             )}
