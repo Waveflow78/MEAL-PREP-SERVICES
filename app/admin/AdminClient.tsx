@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Order, Meal, AdminStats, Week } from '@/types'
 import AdminStatsRow from '@/components/admin/AdminStatsRow'
 import OrdersTable from '@/components/admin/OrdersTable'
@@ -60,6 +60,33 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
   const [weekNum, setWeekNum] = useState('')
   const [startDate, setStartDate] = useState('')
   const [savingWeek, setSavingWeek] = useState(false)
+  const [notifyOnActivate, setNotifyOnActivate] = useState(true)
+
+  // WhatsApp broadcast state
+  interface WAStatus { configured: boolean; customerCount: number; employeeCount: number }
+  const [waStatus, setWaStatus] = useState<WAStatus | null>(null)
+  const [waTo, setWaTo] = useState<'all_customers' | 'ordered_this_week' | 'all_employees'>('all_customers')
+  const [waMessage, setWaMessage] = useState('')
+  const [waBusy, setWaBusy] = useState(false)
+
+  const WA_TEMPLATES = [
+    {
+      label: '🍱 New menu live',
+      text: `🍱 *Kim's Kitchen — New Menu is Live!*\n\nOur latest meal prep menu is now available. Visit our website to view this week's delicious options and place your order 👇\nhttps://meal-prep-services.vercel.app/menu`,
+    },
+    {
+      label: '📦 Orders ready',
+      text: `📦 *Kim's Kitchen — Your Order is Ready!*\n\nGreat news! Your meal prep order has been prepared and is ready for collection or delivery. Thank you for choosing Kim's Kitchen! 🙏`,
+    },
+    {
+      label: '⏰ Order reminder',
+      text: `⏰ *Kim's Kitchen — Order Reminder*\n\nDon't forget to place your order for this week's meal prep before the deadline! Visit 👇\nhttps://meal-prep-services.vercel.app/menu`,
+    },
+    {
+      label: '✍️ Custom message',
+      text: '',
+    },
+  ]
 
   // Employee state
   const [employees, setEmployees] = useState<EmployeeSummary[]>(initialEmployees)
@@ -79,6 +106,26 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
 
   // ── Helpers ──────────────────────────────────────────────────────────
+  // Load WhatsApp status on mount
+  useEffect(() => {
+    api.get<{ configured: boolean; customerCount: number; employeeCount: number }>('/api/admin/whatsapp')
+      .then(setWaStatus)
+      .catch(() => null)
+  }, [])
+
+  async function sendBroadcast() {
+    if (!waMessage.trim()) { toast('Enter a message first', 'error'); return }
+    setWaBusy(true)
+    try {
+      const result = await api.post<{ sent: number; failed: number; total: number }>(
+        '/api/admin/whatsapp',
+        { message: waMessage, to: waTo }
+      )
+      toast(`✅ Sent to ${result.sent} of ${result.total} recipients${result.failed ? ` (${result.failed} failed)` : ''}`)
+    } catch { toast('Broadcast failed', 'error') }
+    finally { setWaBusy(false) }
+  }
+
   async function createEmployee() {
     if (!newEmpName.trim()) { toast('Enter employee name', 'error'); return }
     setEmpBusy(true)
@@ -107,7 +154,7 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
     if (!weekNum || !startDate) { toast('Enter week number and start date', 'error'); return }
     setSavingWeek(true)
     try {
-      await api.post('/api/admin/weeks', { weekNum: Number(weekNum), startDate })
+      await api.post('/api/admin/weeks', { weekNum: Number(weekNum), startDate, notifyWhatsApp: notifyOnActivate })
       toast(`Week ${weekNum} activated`)
     } catch { toast('Failed to activate week', 'error') }
     finally { setSavingWeek(false) }
@@ -540,7 +587,89 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
                 <Input label="Week Number" type="number" value={weekNum} onChange={(e) => setWeekNum(e.target.value)} />
                 <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </div>
+              <label className="mb-4 flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={notifyOnActivate}
+                  onChange={(e) => setNotifyOnActivate(e.target.checked)}
+                  className="h-4 w-4 rounded border-[rgba(45,74,62,0.4)] accent-forest"
+                />
+                <span className="text-sm text-mid">📱 Notify customers on WhatsApp when activated</span>
+              </label>
               <Button variant="primary" loading={savingWeek} onClick={activateWeek}>Activate This Week</Button>
+            </div>
+          </section>
+
+          {/* WhatsApp Broadcast */}
+          <section>
+            <h2 className="mb-4 font-serif text-xl font-semibold text-charcoal">📱 WhatsApp Broadcast</h2>
+            <div className="rounded-2xl border border-[rgba(45,74,62,0.12)] bg-warm-white p-6 max-w-2xl space-y-5">
+
+              {/* Config status */}
+              {waStatus && (
+                <div className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm ${waStatus.configured ? 'bg-forest/8 text-forest' : 'bg-[rgba(196,98,45,0.08)] text-terracotta'}`}>
+                  <span>{waStatus.configured ? '✅' : '⚠️'}</span>
+                  {waStatus.configured
+                    ? `Connected · ${waStatus.customerCount} customers & ${waStatus.employeeCount} employees have phone numbers`
+                    : 'WhatsApp not configured — add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_FROM to your environment variables'}
+                </div>
+              )}
+
+              {/* Quick templates */}
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted uppercase tracking-wide">Quick Templates</p>
+                <div className="flex flex-wrap gap-2">
+                  {WA_TEMPLATES.map((t) => (
+                    <button
+                      key={t.label}
+                      onClick={() => setWaMessage(t.text)}
+                      className="rounded-lg border border-[rgba(45,74,62,0.2)] bg-cream px-3 py-1.5 text-xs font-medium text-charcoal hover:border-forest/40 hover:bg-forest/5 transition-colors"
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recipients */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted uppercase tracking-wide">Send To</label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: 'all_customers',      label: '👥 All Customers', count: waStatus?.customerCount },
+                    { value: 'ordered_this_week',   label: '📦 Ordered This Week', count: null },
+                    { value: 'all_employees',       label: '🏢 All Employees', count: waStatus?.employeeCount },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setWaTo(opt.value)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-colors ${
+                        waTo === opt.value ? 'bg-forest text-white' : 'bg-cream text-charcoal hover:bg-forest/10'
+                      }`}
+                    >
+                      {opt.label}{opt.count !== null && opt.count !== undefined ? ` (${opt.count})` : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Message editor */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted uppercase tracking-wide">
+                  Message <span className="normal-case text-muted">({waMessage.length} chars)</span>
+                </label>
+                <textarea
+                  value={waMessage}
+                  onChange={(e) => setWaMessage(e.target.value)}
+                  rows={6}
+                  placeholder="Type your WhatsApp message here...&#10;&#10;Tip: Use *bold* and _italic_ for WhatsApp formatting."
+                  className="w-full rounded-xl border border-[rgba(45,74,62,0.25)] bg-cream px-4 py-3 text-sm text-charcoal placeholder-muted/60 focus:outline-none focus:ring-2 focus:ring-forest/30 resize-none font-mono"
+                />
+              </div>
+
+              <Button variant="primary" loading={waBusy} onClick={sendBroadcast} className="w-full sm:w-auto">
+                Send WhatsApp Broadcast
+              </Button>
             </div>
           </section>
 
