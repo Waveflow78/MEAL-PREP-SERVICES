@@ -10,6 +10,15 @@ import Button from '@/components/ui/Button'
 import { api } from '@/lib/api'
 import { toast } from '@/components/ui/Toast'
 
+interface EmployeeSummary {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  createdAt: string
+  timeEntries: { id: string; checkIn: string; checkOut: string | null; note: string | null }[]
+}
+
 interface UserSummary {
   id: string
   name: string
@@ -25,11 +34,22 @@ interface Props {
   stats: AdminStats
   activeWeek: Week | null
   allUsers: UserSummary[]
+  employees: EmployeeSummary[]
 }
 
-type AdminTab = 'overview' | 'meals-ordered' | 'meal-manager' | 'settings'
+type AdminTab = 'overview' | 'meals-ordered' | 'employees' | 'meal-manager' | 'settings'
 
-export default function AdminClient({ orders, meals: initialMeals, stats, activeWeek, allUsers: initialUsers }: Props) {
+function fmtTime(dt: string | null) {
+  if (!dt) return '—'
+  return new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+function fmtDuration(a: string, b: string | null) {
+  const ms = (b ? new Date(b) : new Date()).getTime() - new Date(a).getTime()
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000)
+  return `${h}h ${m}m`
+}
+
+export default function AdminClient({ orders, meals: initialMeals, stats, activeWeek, allUsers: initialUsers, employees: initialEmployees }: Props) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview')
 
   // Meal manager state
@@ -40,6 +60,13 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
   const [weekNum, setWeekNum] = useState('')
   const [startDate, setStartDate] = useState('')
   const [savingWeek, setSavingWeek] = useState(false)
+
+  // Employee state
+  const [employees, setEmployees] = useState<EmployeeSummary[]>(initialEmployees)
+  const [newEmpName, setNewEmpName] = useState('')
+  const [newEmpPhone, setNewEmpPhone] = useState('')
+  const [empBusy, setEmpBusy] = useState(false)
+  const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null)
 
   // Coach management state
   const [users, setUsers] = useState<UserSummary[]>(initialUsers)
@@ -52,6 +79,22 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
 
   // ── Helpers ──────────────────────────────────────────────────────────
+  async function createEmployee() {
+    if (!newEmpName.trim()) { toast('Enter employee name', 'error'); return }
+    setEmpBusy(true)
+    try {
+      const { employee, plainPassword } = await api.post<{ employee: EmployeeSummary; plainPassword: string }>(
+        '/api/admin/employees',
+        { name: newEmpName.trim(), phone: newEmpPhone.trim() || undefined }
+      )
+      setCreatedCreds({ email: employee.email, password: plainPassword })
+      setEmployees((prev) => [...prev, { ...employee, timeEntries: [] }])
+      setNewEmpName(''); setNewEmpPhone('')
+      toast(`Employee "${employee.name}" created`)
+    } catch { toast('Failed to create employee', 'error') }
+    finally { setEmpBusy(false) }
+  }
+
   async function refreshMeals() {
     try { setMeals(await api.get<Meal[]>('/api/admin/meals')) } catch { /* silent */ }
   }
@@ -147,6 +190,7 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
   const TABS: { id: AdminTab; label: string }[] = [
     { id: 'overview',      label: '📋 Overview' },
     { id: 'meals-ordered', label: '🍱 Meals Ordered' },
+    { id: 'employees',     label: '👥 Employees' },
     { id: 'meal-manager',  label: '🥘 Meal Manager' },
     { id: 'settings',      label: '⚙️ Settings' },
   ]
@@ -322,6 +366,136 @@ export default function AdminClient({ orders, meals: initialMeals, stats, active
               </div>
             )}
           </section>
+        </div>
+      )}
+
+      {/* ── EMPLOYEES TAB ── */}
+      {activeTab === 'employees' && (
+        <div className="space-y-8">
+
+          {/* Today's attendance board */}
+          <section>
+            <h2 className="mb-4 font-serif text-xl font-semibold text-charcoal">
+              Today&apos;s Attendance — {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </h2>
+            {employees.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-[rgba(45,74,62,0.12)] bg-warm-white py-14 text-center">
+                <div className="text-4xl mb-2">👥</div>
+                <p className="text-sm text-muted">No employees yet. Add one below.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-[rgba(45,74,62,0.12)] bg-warm-white">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[rgba(45,74,62,0.12)] bg-cream text-left text-xs font-semibold uppercase tracking-wider text-muted">
+                      <th className="px-4 py-3">Employee</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Check In</th>
+                      <th className="px-4 py-3">Check Out</th>
+                      <th className="px-4 py-3">Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[rgba(45,74,62,0.08)]">
+                    {employees.map((emp) => {
+                      const todayEntry = emp.timeEntries[0] ?? null
+                      const isIn = todayEntry && !todayEntry.checkOut
+                      return (
+                        <tr key={emp.id} className="hover:bg-cream/40">
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-charcoal">{emp.name}</p>
+                            <p className="text-xs text-muted">{emp.email}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              isIn ? 'bg-forest/10 text-forest' : todayEntry ? 'bg-cream text-muted' : 'bg-[rgba(196,98,45,0.08)] text-terracotta'
+                            }`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${isIn ? 'bg-forest' : todayEntry ? 'bg-muted' : 'bg-terracotta'}`} />
+                              {isIn ? 'Checked In' : todayEntry ? 'Checked Out' : 'Not In'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-charcoal font-mono text-xs">
+                            {todayEntry ? fmtTime(todayEntry.checkIn) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-charcoal font-mono text-xs">
+                            {todayEntry?.checkOut ? fmtTime(todayEntry.checkOut) : isIn ? <span className="text-forest text-xs">Active</span> : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-mid text-xs">
+                            {todayEntry ? fmtDuration(todayEntry.checkIn, todayEntry.checkOut ?? null) : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* Add new employee */}
+          <section>
+            <h2 className="mb-4 font-serif text-xl font-semibold text-charcoal">Add New Employee</h2>
+            <div className="rounded-2xl border border-[rgba(45,74,62,0.12)] bg-warm-white p-6 max-w-lg space-y-4">
+              <Input label="Full Name" placeholder="e.g. Jane Doe" value={newEmpName} onChange={(e) => setNewEmpName(e.target.value)} />
+              <Input label="Phone (optional)" type="tel" placeholder="e.g. 0712 345 678" value={newEmpPhone} onChange={(e) => setNewEmpPhone(e.target.value)} />
+              <Button variant="primary" loading={empBusy} onClick={createEmployee}>Create Employee</Button>
+
+              {/* Credentials reveal — shown once after creation */}
+              {createdCreds && (
+                <div className="rounded-xl border-2 border-forest bg-forest/5 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-forest">✅ Employee created — save these credentials now</p>
+                  <p className="text-xs text-muted">These will not be shown again.</p>
+                  <div className="rounded-lg bg-warm-white p-3 font-mono text-sm space-y-1">
+                    <p><span className="text-muted">Email: </span><span className="text-charcoal font-medium">{createdCreds.email}</span></p>
+                    <p><span className="text-muted">Password: </span><span className="text-charcoal font-medium">{createdCreds.password}</span></p>
+                  </div>
+                  <button onClick={() => setCreatedCreds(null)} className="text-xs text-muted hover:text-terracotta">Dismiss</button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* All employees list */}
+          {employees.length > 0 && (
+            <section>
+              <h2 className="mb-4 font-serif text-xl font-semibold text-charcoal">All Staff ({employees.length})</h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {employees.map((emp) => {
+                  const completedShifts = emp.timeEntries.filter((e) => e.checkOut).length
+                  const totalMs = emp.timeEntries
+                    .filter((e) => e.checkOut)
+                    .reduce((s, e) => s + new Date(e.checkOut!).getTime() - new Date(e.checkIn).getTime(), 0)
+                  const totalH = (totalMs / 3600000).toFixed(1)
+                  return (
+                    <div key={emp.id} className="rounded-2xl border border-[rgba(45,74,62,0.12)] bg-warm-white p-5 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest/10 font-serif text-lg font-bold text-forest">
+                          {emp.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-charcoal truncate">{emp.name}</p>
+                          <p className="text-xs text-muted truncate">{emp.email}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg bg-cream p-2 text-center">
+                          <p className="font-bold text-charcoal">{completedShifts}</p>
+                          <p className="text-muted">Shifts (today)</p>
+                        </div>
+                        <div className="rounded-lg bg-cream p-2 text-center">
+                          <p className="font-bold text-charcoal">{totalH}h</p>
+                          <p className="text-muted">Hours (today)</p>
+                        </div>
+                      </div>
+                      {emp.phone && <p className="text-xs text-muted">📞 {emp.phone}</p>}
+                      <p className="text-xs text-muted">
+                        Added {new Date(emp.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
         </div>
       )}
 

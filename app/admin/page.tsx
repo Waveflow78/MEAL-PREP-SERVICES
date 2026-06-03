@@ -14,7 +14,10 @@ export default async function AdminPage() {
   if (!session) redirect('/login')
   if (session.user.role !== 'ADMIN') redirect('/menu')
 
-  const [orders, meals, activeWeek, allUsers] = await Promise.all([
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+  const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999)
+
+  const [orders, meals, activeWeek, allUsers, employees] = await Promise.all([
     prisma.order.findMany({
       include: { items: { include: { meal: true } }, user: { select: { name: true, email: true } }, week: true },
       orderBy: { createdAt: 'desc' },
@@ -24,6 +27,17 @@ export default async function AdminPage() {
     prisma.week.findFirst({ where: { active: true } }),
     prisma.user.findMany({
       select: { id: true, name: true, email: true, role: true, coachId: true, coach: { select: { id: true, name: true } } },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.user.findMany({
+      where: { role: 'EMPLOYEE' },
+      select: {
+        id: true, name: true, email: true, phone: true, createdAt: true,
+        timeEntries: {
+          where: { checkIn: { gte: todayStart, lte: todayEnd } },
+          orderBy: { checkIn: 'asc' },
+        },
+      },
       orderBy: { name: 'asc' },
     }),
   ])
@@ -49,5 +63,5 @@ export default async function AdminPage() {
     activeWeek,
   }
 
-  return <AdminClient orders={orders as never} meals={meals as never} stats={stats as never} activeWeek={activeWeek as never} allUsers={allUsers as never} />
+  return <AdminClient orders={orders as never} meals={meals as never} stats={stats as never} activeWeek={activeWeek as never} allUsers={allUsers as never} employees={employees as never} />
 }

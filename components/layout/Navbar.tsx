@@ -4,28 +4,41 @@ import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
-const navLinks = [
-  { href: '/menu', label: 'Menu' },
-  { href: '/orders', label: 'My Orders' },
-  { href: '/eaten', label: 'Food Log' },
+const customerLinks = [
+  { href: '/menu',      label: 'Menu' },
+  { href: '/orders',    label: 'My Orders' },
+  { href: '/eaten',     label: 'Food Log' },
   { href: '/dashboard', label: 'Dashboard' },
 ]
+
+const adminLinks = [
+  { href: '/menu',   label: 'Menu' },
+  { href: '/orders', label: 'My Orders' },
+]
+
+const employeeLinks: { href: string; label: string }[] = []
 
 export default function Navbar() {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  const role = session?.user?.role
+  const baseLinks =
+    role === 'ADMIN'    ? adminLinks :
+    role === 'EMPLOYEE' ? employeeLinks :
+    customerLinks   // CUSTOMER + COACH both see customer links
+
   return (
     <nav className="sticky top-0 z-40 border-b border-[rgba(45,74,62,0.12)] bg-warm-white/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link href="/menu" className="font-serif text-xl font-bold text-forest">
+        <Link href={role === 'EMPLOYEE' ? '/employee' : '/menu'} className="font-serif text-xl font-bold text-forest">
           Kim&apos;s Kitchen
         </Link>
 
         {/* Desktop links */}
         <div className="hidden items-center gap-6 md:flex">
-          {navLinks.map((l) => (
+          {baseLinks.map((l) => (
             <Link
               key={l.href}
               href={l.href}
@@ -34,12 +47,17 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
-          {session?.user.role === 'COACH' && (
+          {role === 'EMPLOYEE' && (
+            <Link href="/employee" className={`text-sm font-medium ${pathname === '/employee' ? 'text-forest' : 'text-mid hover:text-forest'}`}>
+              My Hours
+            </Link>
+          )}
+          {role === 'COACH' && (
             <Link href="/coach" className={`text-sm font-medium ${pathname?.startsWith('/coach') ? 'text-forest' : 'text-mid hover:text-forest'}`}>
               My Clients
             </Link>
           )}
-          {session?.user.role === 'ADMIN' && (
+          {role === 'ADMIN' && (
             <Link href="/admin" className={`text-sm font-medium ${pathname === '/admin' ? 'text-terracotta' : 'text-mid hover:text-terracotta'}`}>
               Admin
             </Link>
@@ -73,15 +91,18 @@ export default function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="border-t border-[rgba(45,74,62,0.12)] bg-warm-white px-4 pb-4 md:hidden">
-          {navLinks.map((l) => (
+          {baseLinks.map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)} className="block py-2 text-sm font-medium text-mid hover:text-forest">
               {l.label}
             </Link>
           ))}
-          {session?.user.role === 'COACH' && (
+          {role === 'EMPLOYEE' && (
+            <Link href="/employee" onClick={() => setMenuOpen(false)} className="block py-2 text-sm font-medium text-mid hover:text-forest">My Hours</Link>
+          )}
+          {role === 'COACH' && (
             <Link href="/coach" onClick={() => setMenuOpen(false)} className="block py-2 text-sm font-medium text-mid hover:text-forest">My Clients</Link>
           )}
-          {session?.user.role === 'ADMIN' && (
+          {role === 'ADMIN' && (
             <Link href="/admin" onClick={() => setMenuOpen(false)} className="block py-2 text-sm font-medium text-mid hover:text-terracotta">Admin</Link>
           )}
           <div className="mt-3 border-t border-[rgba(45,74,62,0.12)] pt-3">

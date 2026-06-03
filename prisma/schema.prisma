@@ -21,12 +21,14 @@ model User {
   orders        Order[]
   eatenLogs     EatenLog[]
   resetTokens   PasswordResetToken[]
+  timeEntries   TimeEntry[]
 }
 
 enum Role {
   ADMIN
   COACH
   CUSTOMER
+  EMPLOYEE
 }
 
 model Week {
@@ -163,6 +165,16 @@ model PhoneOtp {
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model TimeEntry {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  checkIn   DateTime
+  checkOut  DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
 }
 
 model PasswordResetToken {

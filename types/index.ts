@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'COACH' | 'CUSTOMER'
+export type Role = 'ADMIN' | 'COACH' | 'CUSTOMER' | 'EMPLOYEE'
 
 export type MealCategory =
   | 'HIGH_PROTEIN'
@@ -109,6 +109,16 @@ export interface MacroTotals {
 export interface DaySummary extends MacroTotals {
   day: DayOfWeek
   mealCount: number
+}
+
+export interface TimeEntry {
+  id: string
+  userId: string
+  checkIn: string
+  checkOut: string | null
+  note: string | null
+  createdAt: string
+  user?: { name: string; email: string }
 }
 
 export interface AdminStats {
